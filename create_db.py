@@ -185,6 +185,12 @@ def read_three_row_csv(path: str, delimiter: Optional[str], encoding: str) -> Tu
 # -----------------------------
 
 def generate_create_table_sql(table_name: str, descriptions: List[str], type_labels: List[str], colnames: List[str]) -> str:
+    """
+    Generate a CREATE TABLE DDL. Adds:
+      - id uuid primary key default gen_random_uuid()
+    Ignores columns with missing column name.
+    Ensures no trailing comma even when inline comments are present.
+    """
     table_ident = quote_ident(table_name)
     ddl_lines: List[str] = []
 
@@ -195,14 +201,14 @@ def generate_create_table_sql(table_name: str, descriptions: List[str], type_lab
     ddl_lines.append(f"  id uuid primary key default gen_random_uuid(),")
 
     warnings: List[str] = []
-    col_defs: List[str] = []
+    cols: List[Tuple[str, str]] = []  # (definition_sql, comment_text)
 
+    # Build normalized column list first
     for desc, typelab, col in zip(descriptions, type_labels, colnames):
         col = (col or "").strip()
         typelab = (typelab or "").strip()
         if not col:
-            # ignore unnamed columns
-            continue
+            continue  # ignore unnamed columns
 
         pg_type, w = map_type(typelab, col)
         warnings.extend(w)
@@ -210,18 +216,20 @@ def generate_create_table_sql(table_name: str, descriptions: List[str], type_lab
             continue
 
         col_ident = quote_ident(col)
-        line = f"  {col_ident} {pg_type}"
-        if desc.strip():
-            safe_desc = re.sub(r"\s+", " ", desc.strip())
-            line += f",  -- {safe_desc}"
-        else:
+        def_sql = f"{col_ident} {pg_type}"
+        comment_text = re.sub(r"\s+", " ", desc.strip()) if desc.strip() else ""
+        cols.append((def_sql, comment_text))
+
+    # Emit columns with commas only between items
+    for i, (def_sql, comment_text) in enumerate(cols):
+        is_last = (i == len(cols) - 1)
+        line = f"  {def_sql}"
+        if not is_last:
             line += ","
-        col_defs.append(line)
+        if comment_text:
+            line += f"  -- {comment_text}"
+        ddl_lines.append(line)
 
-    if col_defs:
-        col_defs[-1] = col_defs[-1].rstrip(",")
-
-    ddl_lines.extend(col_defs)
     ddl_lines.append(");")
 
     if warnings:
