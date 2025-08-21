@@ -1,32 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-Generate a Supabase (PostgreSQL) CREATE TABLE statement from a 3-row CSV/TSV.
-
-Expected file layout (exactly three logical rows):
-  Row 1: Human-readable descriptions (ignored except inline comments)
-  Row 2: Type labels (e.g., "String", "DateTime", "Enum", "Employee list", "Enum (multi select)", etc.)
-  Row 3: Column names (snake_case preferred). Empty cell => column ignored
-
-Key rules:
-- Adds `id uuid primary key default gen_random_uuid()` (independent from any sheet columns).
-- Type mapping:
-    Enum                   -> <column_name>           (assumes enum type exists with same name)
-    Enum (multi select)    -> <column_name>[]         (array of that enum)
-    Employee list          -> jsonb
-    Employee list (ordered array) -> jsonb
-    DateTime               -> timestamptz
-    Date                   -> date
-    Time                   -> time
-    Currency               -> numeric(12,2)
-    Decimal                -> numeric
-    String/Text/Phone/Adress -> text
-- Unknown types => text (emits a warning comment).
-- No email/phone checks.
-
-Usage:
-    python generate_supabase_schema.py --table <table> --csv <path> [--delimiter ,|\\t|;|\\|] [--encoding utf-8-sig]
-"""
+# Usage:
+#     python generate_supabase_schema.py --table <table> --csv <path> [--delimiter ,|\\t|;|\\|] [--encoding utf-8-sig]
 
 from __future__ import annotations
 import argparse
@@ -42,7 +17,7 @@ from typing import Dict, List, Tuple, Optional
 
 SIMPLE_TYPE_MAP: Dict[str, str] = {
     "string": "text",
-    "adress": "text",  # keep misspelling per source; treat as text
+    "adress": "text",
     "text": "text",
     "phone": "text",
     "datetime": "timestamptz",
